@@ -619,6 +619,8 @@
       border-radius: 14px;
       padding: 24px;
       box-shadow: 0 20px 25px -5px rgba(22, 30, 46, 0.2);
+      max-height: 92dvh;
+      overflow-y: auto;
     }
 
     .modal-header {
@@ -775,33 +777,123 @@
       transform: translateY(-2px);
     }
 
-    /* 成果總覽卡片數據 */
+    /* 成果總覽卡片數據 (改為四宮格) */
     .summary-stats-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      margin: 18px 0 24px;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      margin: 16px 0 14px;
     }
 
     .stat-box {
       background: var(--card-sub-bg);
       border: 1px solid var(--border-color);
       border-radius: 10px;
-      padding: 14px 8px;
+      padding: 12px 6px;
       text-align: center;
     }
 
     .stat-val {
-      font-size: 1.6rem;
+      font-size: 1.45rem;
       font-weight: 800;
       color: var(--primary-ink);
     }
 
     .stat-label {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--text-sub);
       font-weight: 600;
-      margin-top: 4px;
+      margin-top: 3px;
+    }
+
+    /* 弱點診斷與錯題清單區 */
+    .diagnosis-box {
+      background: var(--card-sub-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: left;
+      margin-bottom: 16px;
+      font-size: 0.92rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .diagnosis-title {
+      font-weight: 700;
+      color: var(--primary-ink);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .diagnosis-list {
+      list-style-type: none;
+      padding-left: 0;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    .diagnosis-list li {
+      padding: 3px 0;
+      border-bottom: 1px dashed var(--border-color);
+    }
+
+    .diagnosis-list li:last-child {
+      border-bottom: none;
+    }
+
+    /* 學生身分與成績複製控制項 */
+    .export-action-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .student-id-input {
+      flex: 1;
+      height: 48px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 0.95rem;
+      color: var(--primary-ink);
+      background: #ffffff;
+      outline: none;
+      transition: border-color 0.15s ease;
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+
+    .student-id-input:focus {
+      border-color: var(--primary-ink);
+    }
+
+    .btn-copy-report {
+      height: 48px;
+      background: var(--sage-green);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 18px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+
+    .btn-copy-report:hover {
+      background: var(--sage-green-hover);
+    }
+
+    .btn-copy-report.copied {
+      background: var(--primary-ink);
     }
 
     /* 手機直式排版 */
@@ -970,6 +1062,20 @@
         width: 100%;
         padding: 14px 20px;
         font-size: 1.15rem;
+      }
+
+      .summary-stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .export-action-box {
+        flex-direction: column;
+      }
+
+      .btn-copy-report {
+        width: 100%;
+        justify-content: center;
       }
     }
   </style>
@@ -1148,16 +1254,21 @@
     </div>
   </div>
 
-  <!-- 全卷完成結算 Modal -->
+  <!-- 全卷完成結算 Modal（整合方向 A：文字成績匯出） -->
   <div class="modal-overlay" id="summaryModal">
     <div class="modal-content" style="text-align: center;">
       <h2 style="font-size: 1.6rem; color: var(--sage-green); margin-bottom: 6px;">🎉 恭喜完成挑戰！</h2>
-      <p style="color: var(--text-sub); font-size: 0.98rem;" id="summaryDifficultyDesc">你已經精準完成本次測驗的要素配置與句型歸納！</p>
+      <p style="color: var(--text-sub); font-size: 0.95rem;" id="summaryDifficultyDesc">你已經精準完成本次測驗的要素配置與句型歸納！</p>
 
+      <!-- 統計數據四宮格 -->
       <div class="summary-stats-grid">
         <div class="stat-box">
           <div class="stat-val" id="statAccuracy">-- / --</div>
           <div class="stat-label">完成題數</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statFirstPass">0%</div>
+          <div class="stat-label">初次全對率</div>
         </div>
         <div class="stat-box">
           <div class="stat-val" id="statTotalTime">00:00</div>
@@ -1169,7 +1280,22 @@
         </div>
       </div>
 
-      <button class="btn-action-primary" style="width: 100%; border-radius: 30px;" onclick="promptResetQuiz()">再挑戰一次 🔄</button>
+      <!-- 弱點診斷清單區 -->
+      <div class="diagnosis-box" id="diagnosisBox">
+        <div class="diagnosis-title">
+          <span>🔍</span>
+          <span id="diagnosisHeader">作答診斷分析</span>
+        </div>
+        <ul class="diagnosis-list" id="diagnosisList"></ul>
+      </div>
+
+      <!-- 學生座號姓名與一鍵複製按鈕 -->
+      <div class="export-action-box">
+        <input type="text" id="studentIdInput" class="student-id-input" placeholder="輸入班級座號姓名（例：802班 15號 王小明）" maxlength="30">
+        <button class="btn-copy-report" id="btnCopyReport" onclick="copyTextReport()">📋 複製成績單</button>
+      </div>
+
+      <button class="btn-action-primary" style="width: 100%; border-radius: 30px; height: 48px; font-size: 1.05rem;" onclick="promptResetQuiz()">再挑戰一次 🔄</button>
     </div>
   </div>
 
@@ -1330,7 +1456,7 @@
     let currentQuestions = [];
     let currentIndex = 0;
     let selectedTag = null;
-    let userProgress = {};
+    let userProgress = {}; // 記錄 slots, completed, phase1Errors, phase2Errors, wrongChoices
 
     let timerInterval = null;
     let totalSeconds = 0;
@@ -1368,7 +1494,6 @@
       document.getElementById("startScreen").style.display = "none";
       const modeBadge = document.getElementById("currentModeBadge");
       
-      // 完全依據實際抽取到的題目長度動態顯示
       if (currentDifficulty === 'basic') {
         modeBadge.textContent = `🌱 基礎練習 (${currentQuestions.length}題)`;
       } else if (currentDifficulty === 'advanced') {
@@ -1429,7 +1554,9 @@
     function saveCurrentState() {
       const slots = document.querySelectorAll(".dropzone");
       const savedVals = Array.from(slots).map(s => s.dataset.filledType || "");
-      if (!userProgress[currentIndex]) userProgress[currentIndex] = {};
+      if (!userProgress[currentIndex]) {
+        userProgress[currentIndex] = { phase1Errors: 0, phase2Errors: 0, wrongChoices: [] };
+      }
       userProgress[currentIndex].slots = savedVals;
     }
 
@@ -1565,6 +1692,10 @@
       const dropzones = document.querySelectorAll(".dropzone");
       const userPlaced = Array.from(dropzones).map(d => d.dataset.filledType || "");
 
+      if (!userProgress[currentIndex]) {
+        userProgress[currentIndex] = { phase1Errors: 0, phase2Errors: 0, wrongChoices: [] };
+      }
+
       const allFilled = userPlaced.every(v => v !== "");
       if (!allFilled) {
         playErrorSound();
@@ -1575,6 +1706,7 @@
       const isCorrect = userPlaced.every((val, i) => val === q.targetComponents[i]);
 
       if (!isCorrect) {
+        userProgress[currentIndex].phase1Errors++; // 累計要素配置失誤
         playErrorSound();
         showFeedback("stepOneFeedback", "error", "成分配置有偏差喔！再試一次！");
       } else {
@@ -1589,10 +1721,13 @@
       const q = currentQuestions[currentIndex];
       document.querySelectorAll(".btn-type-choice").forEach(b => b.className = "btn-type-choice");
 
+      if (!userProgress[currentIndex]) {
+        userProgress[currentIndex] = { phase1Errors: 0, phase2Errors: 0, wrongChoices: [] };
+      }
+
       if (choice === q.sentenceType) {
         playSuccessSound();
         btnElem.classList.add("selected-correct");
-        if (!userProgress[currentIndex]) userProgress[currentIndex] = {};
         userProgress[currentIndex].completed = true;
         saveCurrentState();
         updateNavPillsState();
@@ -1604,6 +1739,10 @@
           document.getElementById("btnNextBig").textContent = (currentIndex === currentQuestions.length - 1) ? "查看全部成果 🏆" : "進入下一題 ➔";
         }, 300);
       } else {
+        userProgress[currentIndex].phase2Errors++; // 累計句型歸納失誤
+        if (!userProgress[currentIndex].wrongChoices.includes(choice)) {
+          userProgress[currentIndex].wrongChoices.push(choice);
+        }
         playErrorSound();
         btnElem.classList.add("selected-wrong");
         showFeedback("stepTwoFeedback", "error", `不對喔，這不是「${choice}」。請重新觀察述語或動詞！`);
@@ -1616,25 +1755,190 @@
       } else {
         stopTimer();
         playFanfareSound();
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        const mm = String(mins).padStart(2, '0');
-        const ss = String(secs).padStart(2, '0');
-
-        let modeText = '基礎練習';
-        if (currentDifficulty === 'advanced') modeText = '進階挑戰';
-        if (currentDifficulty === 'all') modeText = '綜合全題庫練習';
-
-        // 結算文字與數據全面改為動態題數計算
-        document.getElementById("summaryDifficultyDesc").textContent = 
-          `你已成功完成【${modeText}】全部 ${currentQuestions.length} 道題目的要素配置與句型歸納！`;
-        document.getElementById("statAccuracy").textContent = `${currentQuestions.length} / ${currentQuestions.length} 題`;
-        document.getElementById("statTotalTime").textContent = `${mm}:${ss}`;
-        const avg = (totalSeconds / currentQuestions.length).toFixed(1);
-        document.getElementById("statAvgTime").textContent = `${avg} 秒 / 題`;
-
+        renderSummaryReport();
         openModal("summaryModal");
       }
+    }
+
+    // ==========================================
+    // 結算與方向 A 文字成績單產出邏輯
+    // ==========================================
+    let cachedReportText = "";
+
+    function renderSummaryReport() {
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      const mm = String(mins).padStart(2, '0');
+      const ss = String(secs).padStart(2, '0');
+      const totalCount = currentQuestions.length;
+
+      let modeText = '基礎練習';
+      if (currentDifficulty === 'advanced') modeText = '進階挑戰';
+      if (currentDifficulty === 'all') modeText = '綜合全題庫練習';
+
+      document.getElementById("summaryDifficultyDesc").textContent = 
+        `你已成功完成【${modeText}】全部 ${totalCount} 道題目的要素配置與句型歸納！`;
+      document.getElementById("statAccuracy").textContent = `${totalCount} / ${totalCount}`;
+      document.getElementById("statTotalTime").textContent = `${mm}:${ss}`;
+      const avg = (totalSeconds / totalCount).toFixed(1);
+      document.getElementById("statAvgTime").textContent = `${avg} 秒`;
+
+      // 計算初次全對（First-Pass Accuracy）與累計失誤
+      let firstPassCount = 0;
+      let totalErrors = 0;
+      const errorDetails = [];
+
+      currentQuestions.forEach((q, idx) => {
+        const p = userProgress[idx] || { phase1Errors: 0, phase2Errors: 0, wrongChoices: [] };
+        const e1 = p.phase1Errors || 0;
+        const e2 = p.phase2Errors || 0;
+        const sumE = e1 + e2;
+        totalErrors += sumE;
+
+        if (sumE === 0) {
+          firstPassCount++;
+        } else {
+          let errDesc = [];
+          if (e1 > 0) errDesc.push(`要素配置偏差 ${e1} 次`);
+          if (e2 > 0) errDesc.push(`曾誤判為「${p.wrongChoices.join('、')}」`);
+          errorDetails.push({
+            qNum: idx + 1,
+            sentence: q.tokens.join(''),
+            correctType: q.sentenceType,
+            desc: errDesc.join('；')
+          });
+        }
+      });
+
+      const firstPassRate = Math.round((firstPassCount / totalCount) * 100);
+      document.getElementById("statFirstPass").textContent = `${firstPassRate}%`;
+
+      // 渲染弱點診斷清單
+      const diagList = document.getElementById("diagnosisList");
+      const diagHeader = document.getElementById("diagnosisHeader");
+      diagList.innerHTML = "";
+
+      if (totalErrors === 0) {
+        diagHeader.textContent = "🥇 完美無瑕！完全精熟！";
+        diagList.innerHTML = `<li>🌟 太厲害了！全卷 ${totalCount} 題皆一次全對，零失誤通關！</li>`;
+      } else {
+        diagHeader.textContent = `作答診斷：${errorDetails.length} 題有訂正足跡（累計 ${totalErrors} 次失誤）`;
+        errorDetails.forEach(item => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>第 ${item.qNum} 題</strong>「${item.sentence}」➔ 正解【${item.correctType}】（${item.desc}）`;
+          diagList.appendChild(li);
+        });
+      }
+
+      // 重置複製按鈕狀態
+      const btnCopy = document.getElementById("btnCopyReport");
+      btnCopy.textContent = "📋 複製成績單";
+      btnCopy.classList.remove("copied");
+    }
+
+    function buildTextReport() {
+      const studentInput = document.getElementById("studentIdInput").value.trim();
+      const studentTag = studentInput ? `👤 學生身分：${studentInput}\n` : "";
+      
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      const mm = String(mins).padStart(2, '0');
+      const ss = String(secs).padStart(2, '0');
+      const totalCount = currentQuestions.length;
+
+      let modeText = '🌱 基礎練習';
+      if (currentDifficulty === 'advanced') modeText = '⚡ 進階挑戰';
+      if (currentDifficulty === 'all') modeText = '🏆 綜合全題庫';
+
+      let firstPassCount = 0;
+      let totalErrors = 0;
+      const errorLines = [];
+
+      currentQuestions.forEach((q, idx) => {
+        const p = userProgress[idx] || { phase1Errors: 0, phase2Errors: 0, wrongChoices: [] };
+        const e1 = p.phase1Errors || 0;
+        const e2 = p.phase2Errors || 0;
+        const sumE = e1 + e2;
+        totalErrors += sumE;
+
+        if (sumE === 0) {
+          firstPassCount++;
+        } else {
+          let errParts = [];
+          if (e1 > 0) errParts.push(`要素配置失誤 ${e1} 次`);
+          if (e2 > 0) errParts.push(`誤判為「${p.wrongChoices.join('、')}」`);
+          errorLines.push(`・第 ${idx + 1} 題「${q.tokens.join('')}」[正解：${q.sentenceType}] ➔ ${errParts.join('；')}`);
+        }
+      });
+
+      const firstPassRate = Math.round((firstPassCount / totalCount) * 100);
+      const avg = (totalSeconds / totalCount).toFixed(1);
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      let weakPart = "";
+      if (errorLines.length === 0) {
+        weakPart = "🔍【精熟診斷】\n★ 太優秀了！全部題目皆一次全對，零失誤完美通關！";
+      } else {
+        weakPart = `🔍【訂正與弱點紀錄】\n${errorLines.join('\n')}\n※ 其餘 ${firstPassCount} 題皆一次全對！`;
+      }
+
+      return `==============================\n` +
+             `🏆【四大句型要素挑戰・學習成效單】\n` +
+             studentTag +
+             `挑戰模式：${modeText} (${totalCount}題)\n` +
+             `完成時間：${dateStr}\n` +
+             `------------------------------\n` +
+             `⏱️ 總耗時間：${mm}分${ss}秒 (平均 ${avg} 秒/題)\n` +
+             `🎯 初次全對：${firstPassCount} / ${totalCount} 題 (精熟度 ${firstPassRate}%)\n` +
+             `❌ 歷程失誤：共 ${totalErrors} 次修正\n` +
+             `------------------------------\n` +
+             `${weakPart}\n` +
+             `==============================`;
+    }
+
+    function copyTextReport() {
+      const textToCopy = buildTextReport();
+      const btn = document.getElementById("btnCopyReport");
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          handleCopySuccess(btn);
+        }).catch(() => {
+          fallbackCopyText(textToCopy, btn);
+        });
+      } else {
+        fallbackCopyText(textToCopy, btn);
+      }
+    }
+
+    function fallbackCopyText(text, btn) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        handleCopySuccess(btn);
+      } catch (err) {
+        alert("複製失敗，請手動截圖或選取文字。");
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function handleCopySuccess(btn) {
+      playSuccessSound();
+      btn.textContent = "✅ 已複製成績！";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = "📋 複製成績單";
+        btn.classList.remove("copied");
+      }, 2500);
     }
 
     function openModal(id) { document.getElementById(id).classList.add("open"); }
