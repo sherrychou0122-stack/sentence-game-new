@@ -339,6 +339,27 @@
       color: var(--primary-ink);
     }
 
+    /* 插槽鎖定樣式：鎖定時變更背景並全面禁用觸控/點擊 */
+    .dropzone.locked {
+      cursor: default !important;
+      pointer-events: none !important;
+      background-color: var(--sage-green-bg) !important;
+      border: 2px solid var(--sage-green) !important;
+      opacity: 0.95;
+    }
+
+    /* 鎖定後隱藏右上角的 ✕ 刪除記號 */
+    .dropzone.locked .tag-item::after {
+      display: none !important;
+    }
+
+    /* 鎖定後插槽內的文字呈現固定墨色 */
+    .dropzone.locked .tag-item {
+      cursor: default !important;
+      color: var(--primary-ink) !important;
+      font-weight: 800;
+    }
+
     .label-bank-wrapper {
       background: var(--card-sub-bg);
       border: 1px solid var(--border-color);
@@ -1578,6 +1599,7 @@
       const slotsContainer = document.getElementById("slotsContainer");
       slotsContainer.innerHTML = "";
       const savedSlots = userProgress[index]?.slots || [];
+      const isAlreadyCompleted = !!userProgress[index]?.completed;
 
       q.tokens.forEach((token, idx) => {
         const pair = document.createElement("div");
@@ -1596,9 +1618,21 @@
           fillDropzone(dropzone, savedSlots[idx]);
         }
 
-        dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
-        dropzone.addEventListener("dragleave", () => { dropzone.classList.remove("dragover"); });
-        dropzone.addEventListener("drop", (e) => {
+        // 若該題已通關，直接套用鎖定狀態
+        if (isAlreadyCompleted) {
+          dropzone.classList.add("locked");
+        }
+
+        dropzone.addEventListener("dragover", (e) => { 
+          if (dropzone.classList.contains("locked")) return;
+          e.preventDefault(); 
+          dropzone.classList.add("dragover"); 
+        });
+        dropzone.addEventListener("dragleave", () => { 
+          dropzone.classList.remove("dragover"); 
+        });
+        dropzone.addEventListener("drop", (e) => { 
+          if (dropzone.classList.contains("locked")) return;
           e.preventDefault();
           dropzone.classList.remove("dragover");
           const tag = e.dataTransfer.getData("text/plain");
@@ -1611,7 +1645,7 @@
         slotsContainer.appendChild(pair);
       });
 
-      if (userProgress[index]?.completed) {
+      if (isAlreadyCompleted) {
         document.getElementById("stepOneBox").style.display = "none";
         document.getElementById("stepTwoBox").style.display = "none";
         document.getElementById("stepThreeBox").style.display = "flex";
@@ -1647,6 +1681,9 @@
     }
 
     function handleDropzoneClick(dropzone) {
+      // 若已被鎖定，全面禁用更換與清空
+      if (dropzone.classList.contains("locked")) return;
+
       if (dropzone.dataset.filledType) {
         clearDropzone(dropzone);
         return;
@@ -1658,12 +1695,14 @@
     }
 
     function fillDropzone(dropzone, tagType) {
+      if (dropzone.classList.contains("locked")) return;
       dropzone.innerHTML = `<div class="tag-item">${tagType}</div>`;
       dropzone.dataset.filledType = tagType;
       dropzone.classList.add("filled");
     }
 
     function clearDropzone(dropzone) {
+      if (dropzone.classList.contains("locked")) return;
       dropzone.innerHTML = `<span style="pointer-events:none;">點選放置</span>`;
       delete dropzone.dataset.filledType;
       dropzone.classList.remove("filled");
@@ -1712,6 +1751,11 @@
       } else {
         playSuccessSound();
         hideFeedback("stepOneFeedback");
+
+        // ★ 核心鎖定邏輯：要素驗證正確後，立即鎖定所有插槽欄位，禁止更換
+        dropzones.forEach(zone => zone.classList.add("locked"));
+        clearTagSelection();
+
         document.getElementById("stepOneBox").style.display = "none";
         document.getElementById("stepTwoBox").style.display = "flex";
       }
@@ -1763,8 +1807,6 @@
     // ==========================================
     // 結算與方向 A 文字成績單產出邏輯
     // ==========================================
-    let cachedReportText = "";
-
     function renderSummaryReport() {
       const mins = Math.floor(totalSeconds / 60);
       const secs = totalSeconds % 60;
